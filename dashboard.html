@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeBonCoin - Graphe Temps Réel</title>
+<style>
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --border:  #30363d;
+    --accent:  #f97316;
+    --blue:    #58a6ff;
+    --green:   #3fb950;
+    --purple:  #bc8cff;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --u-color: #58a6ff;
+    --s-color: #f97316;
+    --p-color: #3fb950;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    grid-template-columns: 1fr 280px;
+    overflow: hidden;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header h1 span { color: var(--accent); }
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #1c2b1c;
+    color: var(--green);
+    border: 1px solid var(--green);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .spacer { flex: 1; }
+  #last-update { font-size: 12px; color: var(--muted); }
+
+  #canvas-wrap {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  canvas { display: block; }
+
+  aside {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-section h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; margin-bottom: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .stat-card .val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .stat-card .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  #top-nodes { flex: 1; overflow-y: auto; padding: 14px 16px; }
+  #top-nodes h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .node-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #1f252d;
+    font-size: 12px;
+  }
+  .type-badge {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .type-badge.U { background:#0e2a4a; color:var(--u-color); }
+  .type-badge.S { background:#3a1c00; color:var(--s-color); }
+  .type-badge.P { background:#0e2b15; color:var(--p-color); }
+  .node-row .name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node-row .score { color: var(--muted); flex-shrink: 0; }
+
+  #actions-feed {
+    height: 160px;
+    overflow-y: auto;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+  }
+  #actions-feed h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .action-row {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 3px 0;
+    display: flex; gap: 6px;
+  }
+  .action-row .act { font-weight: 600; flex-shrink: 0; }
+  .act.AIME  { color: var(--blue); }
+  .act.VOUT  { color: var(--purple); }
+  .act.ACHAT { color: var(--green); }
+
+  #tooltip {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    pointer-events: none;
+    display: none;
+    z-index: 10;
+    min-width: 140px;
+  }
+  #tooltip strong { color: var(--accent); display: block; margin-bottom: 4px; }
+  #tooltip span { color: var(--muted); display: block; line-height: 1.6; }
+
+  #waiting {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+  #waiting .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔗 <span>LeBonCoin</span> - Graphe Temps Réel</h1>
+  <div class="badge">LIVE</div>
+  <div class="spacer"></div>
+  <div id="last-update">En attente du premier batch…</div>
+</header>
+
+<div id="canvas-wrap">
+  <canvas id="graph-canvas"></canvas>
+  <div id="waiting">
+    <div class="spinner"></div>
+    En attente des données PySpark…
+  </div>
+  <div id="tooltip">
+    <strong id="tt-id"></strong>
+    <span id="tt-type"></span>
+    <span id="tt-deg"></span>
+    <span id="tt-pr"></span>
+  </div>
+</div>
+
+<aside>
+  <div class="panel-section">
+    <h2>Légende</h2>
+    <div class="legend-item"><div class="dot" style="background:var(--u-color)"></div>Utilisateur (U)</div>
+    <div class="legend-item"><div class="dot" style="background:var(--s-color)"></div>Vendeur (S)</div>
+    <div class="legend-item"><div class="dot" style="background:var(--p-color)"></div>Produit (P)</div>
+  </div>
+  <div class="panel-section">
+    <h2>Statistiques</h2>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="val" id="stat-v">-</div><div class="lbl">Nœuds</div></div>
+      <div class="stat-card"><div class="val" id="stat-e">-</div><div class="lbl">Arêtes</div></div>
+      <div class="stat-card"><div class="val" id="stat-b">-</div><div class="lbl">Batches</div></div>
+      <div class="stat-card"><div class="val" id="stat-r">5s</div><div class="lbl">Refresh</div></div>
+    </div>
+  </div>
+  <div id="top-nodes">
+    <h2>Top nœuds (inDegree)</h2>
+    <div id="top-list"></div>
+  </div>
+  <div id="actions-feed">
+    <h2>Arêtes récentes</h2>
+    <div id="feed-list"></div>
+  </div>
+</aside>
+
+<script>
+const canvas = document.getElementById('graph-canvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+let nodes = [], links = [], simRunning = false;
+
+const NODE_COLOR   = { U:'#58a6ff', S:'#f97316', P:'#3fb950' };
+const EDGE_COLORS  = { AIME:'#58a6ff', VOUT:'#bc8cff', ACHAT:'#3fb950', PROPOSE:'#444d56' };
+
+function resize() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function initPositions(verts) {
+  const cx = canvas.width / 2, cy = canvas.height / 2, r = Math.min(cx, cy) * 0.6;
+  return verts.map((v, i) => {
+    const existing = nodes.find(n => n.id === v.id);
+    const angle = (2 * Math.PI * i) / verts.length;
+    return {
+      ...v,
+      x:  existing ? existing.x : cx + r * Math.cos(angle) + (Math.random() - .5) * 40,
+      y:  existing ? existing.y : cy + r * Math.sin(angle) + (Math.random() - .5) * 40,
+      vx: 0, vy: 0
+    };
+  });
+}
+
+function applyForces() {
+  const k = 80, repel = 3500, damp = 0.75;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+
+  for (let i = 0; i < nodes.length; i++)
+    for (let j = i + 1; j < nodes.length; j++) {
+      const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+      const d  = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f  = repel / (d * d);
+      nodes[i].vx += f * dx / d;  nodes[i].vy += f * dy / d;
+      nodes[j].vx -= f * dx / d;  nodes[j].vy -= f * dy / d;
+    }
+
+  links.forEach(l => {
+    const s = nodes.find(n => n.id === l.src), t = nodes.find(n => n.id === l.dst);
+    if (!s || !t) return;
+    const dx = t.x - s.x, dy = t.y - s.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const f  = (d - k) * 0.04;
+    s.vx += f * dx / d;  s.vy += f * dy / d;
+    t.vx -= f * dx / d;  t.vy -= f * dy / d;
+  });
+
+  nodes.forEach(n => {
+    n.vx += (cx - n.x) * 0.008;
+    n.vy += (cy - n.y) * 0.008;
+    n.vx *= damp;  n.vy *= damp;
+    n.x  += n.vx;  n.y  += n.vy;
+    n.x = Math.max(30, Math.min(canvas.width  - 30, n.x));
+    n.y = Math.max(30, Math.min(canvas.height - 30, n.y));
+  });
+}
+
+function drawGraph() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const drawn = new Set();
+  links.forEach(l => {
+    const key = `${l.src}-${l.dst}`;
+    if (drawn.has(key)) return;
+    drawn.add(key);
+    const s = nodes.find(n => n.id === l.src), t = nodes.find(n => n.id === l.dst);
+    if (!s || !t) return;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(t.x, t.y);
+    ctx.strokeStyle  = EDGE_COLORS[l.relationship] || '#30363d';
+    ctx.lineWidth    = l.relationship === 'PROPOSE' ? 1 : 1.5;
+    ctx.globalAlpha  = l.relationship === 'PROPOSE' ? 0.2 : 0.5;
+    ctx.stroke();
+    ctx.globalAlpha  = 1;
+  });
+
+  nodes.forEach(n => {
+    const r = 8 + Math.min(n.inDegree || 0, 20) * 0.8;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle   = NODE_COLOR[n.type] || '#fff';
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#0d1117';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+
+    ctx.fillStyle  = '#e6edf3';
+    ctx.font       = '10px Segoe UI';
+    ctx.textAlign  = 'center';
+    ctx.fillText(n.id, n.x, n.y + r + 12);
+  });
+}
+
+function startSim() {
+  if (simRunning) return;
+  simRunning = true;
+  (function tick() {
+    applyForces();
+    drawGraph();
+    requestAnimationFrame(tick);
+  })();
+}
+
+function updateUI(data) {
+  document.getElementById('waiting').style.display = 'none';
+
+  nodes = initPositions(data.vertices);
+  links = data.edges;
+
+  document.getElementById('stat-v').textContent = data.stats.total_vertices;
+  document.getElementById('stat-e').textContent = data.stats.total_edges;
+  document.getElementById('stat-b').textContent = data.batch_id;
+  document.getElementById('last-update').textContent =
+    'Batch #' + data.batch_id + ' - ' + new Date().toLocaleTimeString('fr-FR');
+
+  const sorted = [...data.vertices]
+    .sort((a, b) => (b.inDegree || 0) - (a.inDegree || 0))
+    .slice(0, 10);
+  document.getElementById('top-list').innerHTML = sorted.map(v => `
+    <div class="node-row">
+      <span class="type-badge ${v.type}">${v.type}</span>
+      <span class="name">${v.id}</span>
+      <span class="score">${v.inDegree || 0}</span>
+    </div>`).join('');
+
+  const recent = data.edges.slice(-12).reverse().filter(e => e.relationship !== 'PROPOSE');
+  document.getElementById('feed-list').innerHTML = recent.map(e => `
+    <div class="action-row">
+      <span class="act ${e.relationship}">${e.relationship}</span>
+      <span>${e.src} → ${e.dst}</span>
+    </div>`).join('');
+
+  startSim();
+}
+
+async function fetchGraph() {
+  try {
+    const r = await fetch('/graphe_etat.json?t=' + Date.now());
+    if (r.ok) updateUI(await r.json());
+  } catch(e) {}
+}
+
+fetchGraph();
+setInterval(fetchGraph, 5000);
+
+const tooltip = document.getElementById('tooltip');
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const hit = nodes.find(n => Math.hypot(n.x - mx, n.y - my) < 20);
+  if (hit) {
+    tooltip.style.display = 'block';
+    tooltip.style.left    = (mx + 15) + 'px';
+    tooltip.style.top     = (my - 10) + 'px';
+    document.getElementById('tt-id').textContent   = hit.id;
+    document.getElementById('tt-type').textContent = {U:'Utilisateur', S:'Vendeur', P:'Produit'}[hit.type];
+    document.getElementById('tt-deg').textContent  = 'InDegree : ' + (hit.inDegree || 0);
+    document.getElementById('tt-pr').textContent   = 'PageRank : ' + (hit.pagerank || 0).toFixed(4);
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-# 🔗 LeBonCoin — Streaming Graphe Temps Réel
-> Projet Big Data — Architecture PySpark Streaming & Visualisation Dynamique de Graphes
+# 🔗 LeBonCoin - Streaming Graphe Temps Réel
+> Projet Big Data - Architecture PySpark Streaming & Visualisation Dynamique de Graphes
 
 ---
 
@@ -23,10 +23,10 @@ Simulateur (Socket) ──► PySpark Structured Streaming ──► GraphFrames
 
 | Outil | Version minimale | Vérification |
 |-------|-----------------|--------------|
-| Python | 3.10+ | `python --version` |
-| Java (JDK) | 11 ou 17 | `java -version` |
-| Apache Spark | 3.5.x | `spark-submit --version` |
-| Git | — | `git --version` |
+| Python | 3.10+           | `python --version` |
+| Java (JDK) | 11 ou 17        | `java -version` |
+| Apache Spark | 3.5.x           | `spark-submit --version` |
+| Git |                 | `git --version` |
 
 > ⚠️ **Java est obligatoire** pour faire tourner Spark. OpenJDK 11 ou 17 est recommandé.
 
@@ -83,9 +83,9 @@ python main.py
 
 Cette commande lance **simultanément** :
 
-1. **Le simulateur** — génère des événements JSON sur le port `9990`
-2. **Le serveur dashboard** — sert l'interface web sur `http://localhost:8080`
-3. **PySpark** — consomme le flux, calcule le graphe et écrit `/tmp/graphe_etat.json`
+1. **Le simulateur** : génère des événements JSON sur le port `9990`
+2. **Le serveur dashboard** : sert l'interface web sur `http://localhost:8080`
+3. **PySpark** : consomme le flux, calcule le graphe et écrit `/tmp/graphe_etat.json`
 
 ### Accéder au dashboard
 
@@ -149,8 +149,8 @@ Les paramètres principaux se trouvent en haut de `main.py` :
 
 ### Calculs GraphFrames (par batch)
 
-- **inDegree** — calculé à chaque batch pour tous les nœuds
-- **PageRank** — calculé tous les 10 batches (opération coûteuse), `resetProbability=0.15`, `maxIter=3`
+- **inDegree** : calculé à chaque batch pour tous les nœuds
+- **PageRank** : calculé tous les 10 batches (opération coûteuse), `resetProbability=0.15`, `maxIter=3`
 
 ### Dashboard
 
